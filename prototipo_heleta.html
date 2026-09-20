@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Prototipo - Sistema  | Heleta</title>
+<style>
+  :root {
+    --verde: #2e7d32; --verde-bg: #e8f5e9;
+    --amarillo: #b8860b; --amarillo-bg: #fff8e1;
+    --rojo: #c62828; --rojo-bg: #ffebee;
+    --azul: #1a3c6e; --azul-bg: #dae8fc;
+    --gris: #666; --borde: #ddd;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: #f5f6fa;
+    margin: 0;
+    padding: 24px;
+    color: #222;
+  }
+  .contenedor { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  .subtitulo { color: var(--gris); font-size: 0.9rem; margin-bottom: 20px; }
+  .leyenda {
+    background: #fff; border: 1px dashed var(--borde); border-radius: 8px;
+    padding: 12px 16px; font-size: 0.8rem; color: var(--gris); margin-bottom: 24px;
+  }
+  .leyenda b { color: #222; }
+  .panel {
+    background: #fff; border-radius: 10px; padding: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px;
+  }
+  .panel h2 { font-size: 1.05rem; margin-top: 0; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--borde); font-size: 0.9rem; }
+  th { color: var(--gris); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+  }
+  .badge.ok { background: var(--verde-bg); color: var(--verde); }
+  .badge.precaucion { background: var(--amarillo-bg); color: var(--amarillo); }
+  .badge.alerta { background: var(--rojo-bg); color: var(--rojo); animation: pulso 1.4s infinite; }
+  @keyframes pulso { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+  form { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+  .campo { display: flex; flex-direction: column; gap: 4px; }
+  .campo label { font-size: 0.78rem; color: var(--gris); font-weight: 600; }
+  select, input[type=number] {
+    padding: 8px 10px; border: 1px solid var(--borde); border-radius: 6px; font-size: 0.9rem;
+  }
+  button {
+    padding: 9px 18px; border: none; border-radius: 6px; cursor: pointer;
+    font-size: 0.9rem; font-weight: 600;
+  }
+  button.venta { background: var(--azul); color: #fff; }
+  button.venta:hover { background: #123057; }
+  button.reab { background: var(--verde); color: #fff; }
+  button.reab:hover { background: #205a24; }
+  .alertas-vacio { color: var(--gris); font-size: 0.9rem; font-style: italic; }
+  .fila-alerta {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--rojo-bg); border: 1px solid #f5c2c2; border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 8px;
+  }
+  .fila-alerta span { font-size: 0.88rem; }
+  #log {
+    font-family: Consolas, monospace; font-size: 0.8rem; background: #10131a; color: #d8e0f0;
+    border-radius: 8px; padding: 14px; max-height: 220px; overflow-y: auto;
+  }
+  #log div { margin-bottom: 4px; white-space: pre-wrap; }
+  .tag-sensor { color: #7ec8ff; } .tag-comp { color: #ffd479; }
+  .tag-act { color: #ff8080; } .tag-in { color: #9dff9d; }
+</style>
+</head>
+<body>
+<div class="contenedor">
+
+  <h1> Sistema — Heleta</h1>
+  <div class="subtitulo">Prototipo funcional · Parte 4 del proyecto integrador (TGS)</div>
+
+  
+
+  <div class="panel">
+    <h2>1. Estado actual de inventario (Sensor + Comparador)</h2>
+    <table>
+      <thead>
+        <tr><th>Sucursal</th><th>Sabor</th><th>Stock</th><th>Punto de reorden</th><th>Estado</th></tr>
+      </thead>
+      <tbody id="tabla-stock"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>2. Registrar venta (Entrada real)</h2>
+    <form id="form-venta">
+      <div class="campo">
+        <label>Sucursal y sabor</label>
+        <select id="select-producto"></select>
+      </div>
+      <div class="campo">
+        <label>Cantidad vendida</label>
+        <input type="number" id="input-cantidad" min="1" value="1" required>
+      </div>
+      <button type="submit" class="venta">Registrar venta</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>3. Alertas de reabastecimiento activas (Actuador)</h2>
+    <div id="alertas"></div>
+  </div>
+
+  <div class="panel">
+    <h2>4. Bitácora del sistema</h2>
+    <div id="log"></div>
+  </div>
+
+</div>
+
+<script>
+
+
+
+let productos = [
+  { id: 1, sucursal: "La Brisas Mall",  sabor: "Chocolate Chip", stock: 19, umbral: 20, meta: 45, alertaEnviada: false },
+  { id: 2, sucursal: "La Paz - San Miguel",  sabor: "Red Velvet",     stock: 11, umbral: 10, meta: 30, alertaEnviada: false },
+  { id: 3, sucursal: "Av Arce - Multicine", sabor: "Tiramizu", stock: 30, umbral: 20,  meta: 55, alertaEnviada: false },
+  { id: 4, sucursal: "Ciudad Satelite", sabor: "Coco", stock: 20, umbral: 7,  meta: 25, alertaEnviada: false },
+];
+
+const tablaStock   = document.getElementById('tabla-stock');
+const selectProd   = document.getElementById('select-producto');
+const alertasDiv   = document.getElementById('alertas');
+const log          = document.getElementById('log');
+const formVenta    = document.getElementById('form-venta');
+const inputCant    = document.getElementById('input-cantidad');
+
+function ahora() {
+  return new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function escribirLog(html) {
+  const linea = document.createElement('div');
+  linea.innerHTML = `[${ahora()}] ${html}`;
+  log.prepend(linea);
+}
+
+
+
+
+function calcularEstado(p) {
+  if (p.stock <= 0) return 'alerta';
+  if (p.stock < p.umbral) return 'alerta';
+  if (p.stock < p.umbral * 1.5) return 'precaucion';
+  return 'ok';
+}
+
+function etiquetaEstado(estado) {
+  if (estado === 'alerta') return { texto: '🔴 Alerta: reabastecer', clase: 'alerta' };
+  if (estado === 'precaucion') return { texto: '🟡 Precaución', clase: 'precaucion' };
+  return { texto: '🟢 Stock OK', clase: 'ok' };
+}
+
+function renderTabla() {
+  tablaStock.innerHTML = '';
+  productos.forEach(p => {
+    const estado = calcularEstado(p);
+    const et = etiquetaEstado(estado);
+    const fila = document.createElement('tr');
+    fila.innerHTML = `
+      <td>${p.sucursal}</td>
+      <td>${p.sabor}</td>
+      <td><b>${p.stock}</b></td>
+      <td>${p.umbral}</td>
+      <td><span class="badge ${et.clase}">${et.texto}</span></td>
+    `;
+    tablaStock.appendChild(fila);
+  });
+}
+
+function renderSelect() {
+  selectProd.innerHTML = productos
+    .map(p => `<option value="${p.id}">${p.sucursal} — ${p.sabor} (stock: ${p.stock})</option>`)
+    .join('');
+}
+
+
+
+
+function renderAlertas() {
+  const pendientes = productos.filter(p => p.alertaEnviada);
+  if (pendientes.length === 0) {
+    alertasDiv.innerHTML = '<div class="alertas-vacio">Sin alertas activas — el inventario está dentro de los parámetros definidos.</div>';
+    return;
+  }
+  alertasDiv.innerHTML = '';
+  pendientes.forEach(p => {
+    const fila = document.createElement('div');
+    fila.className = 'fila-alerta';
+    fila.innerHTML = `
+      <span>⚠️ <b>${p.sabor}</b> en <b>${p.sucursal}</b> — stock: ${p.stock} (umbral: ${p.umbral})</span>
+      <button class="reab" data-id="${p.id}">Confirmar reabastecimiento recibido</button>
+    `;
+    alertasDiv.appendChild(fila);
+  });
+  
+
+
+
+  alertasDiv.querySelectorAll('button.reab').forEach(btn => {
+    btn.addEventListener('click', () => confirmarReabastecimiento(parseInt(btn.dataset.id)));
+  });
+}
+
+function renderTodo() {
+  renderTabla();
+  renderSelect();
+  renderAlertas();
+}
+
+
+
+
+
+formVenta.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = parseInt(selectProd.value);
+  const cantidad = parseInt(inputCant.value);
+  const p = productos.find(x => x.id === id);
+  if (!p || !cantidad || cantidad <= 0) return;
+
+  const stockAnterior = p.stock;
+  p.stock = Math.max(0, p.stock - cantidad);
+
+  escribirLog(`<span class="tag-in"> ENTRADA</span> — Venta registrada: ${cantidad} u. de ${p.sabor} (${p.sucursal}). Stock ${stockAnterior} → ${p.stock}`);
+
+  const estado = calcularEstado(p);
+  escribirLog(`<span class="tag-sensor"> SENSOR</span> — Stock recalculado: ${p.stock} unidades`);
+  escribirLog(`<span class="tag-comp"> COMPARADOR</span> — Umbral: ${p.umbral} → estado: ${estado.toUpperCase()}`);
+
+  if (estado === 'alerta' && !p.alertaEnviada) {
+    p.alertaEnviada = true;
+    escribirLog(`<span class="tag-act"> ACTUADOR</span> —  Alerta de reabastecimiento generada y enviada a Compras`);
+  }
+
+  renderTodo();
+  inputCant.value = 1;
+});
+
+
+
+
+
+function confirmarReabastecimiento(id) {
+  const p = productos.find(x => x.id === id);
+  if (!p) return;
+  const stockAnterior = p.stock;
+  p.stock = p.meta;
+  p.alertaEnviada = false;
+  escribirLog(`<span class="tag-in"> ENTRADA (retroalimentación)</span> — Compras confirma reabastecimiento de ${p.sabor} (${p.sucursal}). Stock ${stockAnterior} → ${p.stock}. Bucle B1 cerrado.`);
+  renderTodo();
+}
+
+
+
+
+
+renderTodo();
+escribirLog('Sistema iniciado. Registrá una venta para ver el bucle de retroalimentación en acción.');
+</script>
+</body>
+</html>
